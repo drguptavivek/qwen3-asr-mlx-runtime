@@ -43,6 +43,7 @@ Source = "https://github.com/drguptavivek/qwen3-asr-mlx-runtime"
 [project.scripts]
 qwen3-asr-mlx-bridge = "qwen3_asr_mlx_runtime.bridge:main"
 qwen3-asr-mlx-perftest = "qwen3_asr_mlx_runtime.perftest:main"
+qwen3-asr-mlx-score = "qwen3_asr_mlx_runtime.score:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["qwen3_asr_mlx_runtime"]

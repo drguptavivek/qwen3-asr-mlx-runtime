@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+PYTHON="${PYTHON:-python3}"
+exec "$PYTHON" -m qwen3_asr_mlx_runtime.score "$@"

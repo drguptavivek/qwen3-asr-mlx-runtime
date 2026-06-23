@@ -143,6 +143,28 @@ scripts/qwen3-asr-mlx-perftest --local-files-only \
   examples/audio/utt-002.wav
 ```
 
+Download a small labeled evaluation slice, then run and score it:
+
+```bash
+uv run --with datasets --with soundfile --with numpy \
+  scripts/download-eval-dataset \
+  ekacare/eka-medical-asr-evaluation-dataset \
+  --subset en \
+  --split test \
+  --limit 25 \
+  --streaming \
+  --out eval/eka-medical-en
+
+scripts/qwen3-asr-mlx-perftest \
+  --local-files-only \
+  --manifest eval/eka-medical-en/expected.jsonl \
+  --json > eval/eka-medical-en/qwen3-asr-0.6b.json
+
+scripts/qwen3-asr-mlx-score \
+  --expected eval/eka-medical-en/expected.jsonl \
+  --predictions eval/eka-medical-en/qwen3-asr-0.6b.json
+```
+
 ## Basic JSONL Use
 
 The bridge reads one JSON object per line from stdin and writes one JSON object
@@ -191,6 +213,7 @@ See:
 - [Protocol](docs/protocol.md)
 - [Architecture](docs/architecture.md)
 - [Performance](docs/performance.md)
+- [Evaluation datasets](docs/evaluation.md)
 - [Submodule integration](docs/submodule.md)
 - [Swift example](examples/swift/SubprocessBridge.swift)
 - [Node example](examples/node/bridge.mjs)

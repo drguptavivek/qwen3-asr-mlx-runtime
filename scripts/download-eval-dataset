@@ -1,0 +1,215 @@
+#!/usr/bin/env python3
+"""Export small Hugging Face ASR dataset slices for local Qwen3-ASR evaluation."""
+
+from __future__ import annotations
+
+import argparse
+import io
+import json
+import math
+import sys
+from pathlib import Path
+from typing import Any
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Download/export a small ASR evaluation slice")
+    parser.add_argument("dataset", help="Hugging Face dataset id")
+    parser.add_argument("--subset", default=None, help="Optional dataset subset/config name")
+    parser.add_argument("--split", default="test", help="Dataset split")
+    parser.add_argument("--out", required=True, help="Output directory, for example eval/eka-medical-en")
+    parser.add_argument("--limit", type=int, default=20, help="Number of rows to export")
+    parser.add_argument("--offset", type=int, default=0, help="Rows to skip before exporting")
+    parser.add_argument("--streaming", action="store_true", help="Use HF datasets streaming mode")
+    parser.add_argument("--audio-column", default="audio", help="Audio column name")
+    parser.add_argument("--text-column", default="text", help="Reference text column name")
+    parser.add_argument("--clip-start", type=float, default=0.0, help="Clip start time in seconds")
+    parser.add_argument(
+        "--clip-duration",
+        type=float,
+        default=None,
+        help="Clip duration in seconds. Overrides --max-duration when set.",
+    )
+    parser.add_argument(
+        "--max-duration",
+        type=float,
+        default=30.0,
+        help="Maximum exported duration per row. Use 0 to disable.",
+    )
+    return parser.parse_args()
+
+
+def require_optional_deps() -> tuple[Any, Any, Any, Any]:
+    try:
+        from datasets import Audio, load_dataset
+        import numpy as np
+        import soundfile as sf
+    except ImportError as exc:
+        print(
+            "Missing optional dataset export dependencies.\n"
+            "Run with:\n"
+            "  uv run --with datasets --with soundfile --with numpy "
+            "scripts/download-eval-dataset ...",
+            file=sys.stderr,
+        )
+        raise SystemExit(2) from exc
+    return Audio, load_dataset, np, sf
+
+
+def load_rows(args: argparse.Namespace, audio_feature: Any, load_dataset: Any) -> Any:
+    if args.subset:
+        dataset = load_dataset(args.dataset, args.subset, split=args.split, streaming=args.streaming)
+    else:
+        dataset = load_dataset(args.dataset, split=args.split, streaming=args.streaming)
+    return dataset.cast_column(args.audio_column, audio_feature(decode=False))
+
+
+def row_iterator(dataset: Any, *, offset: int, limit: int) -> Any:
+    count = 0
+    for index, row in enumerate(dataset):
+        if index < offset:
+            continue
+        if count >= limit:
+            break
+        yield index, row
+        count += 1
+
+
+def audio_array(row: dict[str, Any], audio_column: str, np: Any, sf: Any) -> tuple[Any, int]:
+    audio = row.get(audio_column)
+    if not isinstance(audio, dict):
+        raise ValueError(f"audio column {audio_column!r} is not a decoded datasets Audio object")
+    if "array" in audio and "sampling_rate" in audio:
+        values = np.asarray(audio["array"], dtype=np.float32)
+        sample_rate = int(audio["sampling_rate"])
+    elif audio.get("bytes") is not None:
+        values, sample_rate = sf.read(io.BytesIO(audio["bytes"]), dtype="float32", always_2d=False)
+        values = np.asarray(values, dtype=np.float32)
+    elif audio.get("path"):
+        values, sample_rate = sf.read(audio["path"], dtype="float32", always_2d=False)
+        values = np.asarray(values, dtype=np.float32)
+    else:
+        raise ValueError(f"audio column {audio_column!r} does not contain array, bytes, or path")
+    if values.ndim == 2:
+        if values.shape[0] <= 8 and values.shape[1] > values.shape[0]:
+            values = values.T
+        values = values.mean(axis=1)
+    if values.ndim != 1:
+        raise ValueError(f"audio column {audio_column!r} produced unsupported shape {values.shape}")
+    return values, int(sample_rate)
+
+
+def clip_audio(values: Any, sample_rate: int, args: argparse.Namespace) -> tuple[Any, float, float]:
+    start = max(float(args.clip_start), 0.0)
+    source_duration = float(values.shape[0]) / float(sample_rate)
+    requested_duration = args.clip_duration
+    if requested_duration is None and args.max_duration > 0 and source_duration > args.max_duration:
+        requested_duration = args.max_duration
+
+    start_sample = min(int(round(start * sample_rate)), values.shape[0])
+    if requested_duration is None or requested_duration <= 0:
+        end_sample = values.shape[0]
+    else:
+        end_sample = min(start_sample + int(round(requested_duration * sample_rate)), values.shape[0])
+    clipped = values[start_sample:end_sample]
+    return clipped, float(start_sample) / sample_rate, float(end_sample) / sample_rate
+
+
+def text_for_clip(
+    row: dict[str, Any],
+    text_column: str,
+    start: float,
+    end: float,
+    source_duration: float,
+) -> tuple[str, str]:
+    value = row.get(text_column)
+    if isinstance(value, str):
+        return value, "row"
+    if not isinstance(value, list):
+        return "", "unavailable"
+
+    starts = row.get("timestamps_start")
+    ends = row.get("timestamps_end")
+    if isinstance(starts, list) and isinstance(ends, list) and len(starts) == len(ends) == len(value):
+        selected = [
+            str(token)
+            for token, token_start, token_end in zip(value, starts, ends)
+            if float(token_end) > start and float(token_start) < end
+        ]
+        return " ".join(selected), "time_aligned_clip"
+
+    if math.isclose(start, 0.0) and source_duration <= end:
+        return " ".join(str(token) for token in value), "row"
+    if source_duration > 0:
+        first = max(0, min(len(value), math.floor(len(value) * start / source_duration)))
+        last = max(first, min(len(value), math.ceil(len(value) * end / source_duration)))
+        return " ".join(str(token) for token in value[first:last]), "duration_proportional_approximation"
+    return "", "unavailable_for_clipped_list_text"
+
+
+def file_stem(row: dict[str, Any], row_index: int) -> str:
+    source_name = row.get("file_name")
+    if isinstance(source_name, str) and source_name.strip():
+        return Path(source_name).stem.replace(" ", "_")[:80]
+    return f"row-{row_index:06d}"
+
+
+def export(args: argparse.Namespace) -> dict[str, Any]:
+    audio_feature, load_dataset, np, sf = require_optional_deps()
+    dataset = load_rows(args, audio_feature, load_dataset)
+    out_dir = Path(args.out).expanduser()
+    audio_dir = out_dir / "audio"
+    audio_dir.mkdir(parents=True, exist_ok=True)
+    expected_path = out_dir / "expected.jsonl"
+
+    exported = 0
+    with expected_path.open("w", encoding="utf-8") as expected:
+        for row_index, row in row_iterator(dataset, offset=args.offset, limit=args.limit):
+            values, sample_rate = audio_array(row, args.audio_column, np, sf)
+            source_duration = float(values.shape[0]) / float(sample_rate)
+            clipped, start, end = clip_audio(values, sample_rate, args)
+            if clipped.size == 0:
+                continue
+
+            audio_path = audio_dir / f"{row_index:06d}-{file_stem(row, row_index)}.wav"
+            sf.write(str(audio_path), clipped, sample_rate)
+            text, text_scope = text_for_clip(row, args.text_column, start, end, source_duration)
+            record = {
+                "audio": audio_path.as_posix(),
+                "text": text,
+                "dataset": args.dataset,
+                "subset": args.subset,
+                "split": args.split,
+                "row": row_index,
+                "clip_start": round(start, 4),
+                "clip_end": round(end, 4),
+                "duration": round(end - start, 4),
+                "text_scope": text_scope,
+            }
+            for field in ("file_name", "duration", "audio_language", "text_language", "recording_context", "type_concept"):
+                if field in row:
+                    record[f"source_{field}"] = row[field]
+            expected.write(json.dumps(record, ensure_ascii=False) + "\n")
+            exported += 1
+
+    return {
+        "type": "dataset_export",
+        "dataset": args.dataset,
+        "subset": args.subset,
+        "split": args.split,
+        "out": out_dir.as_posix(),
+        "expected": expected_path.as_posix(),
+        "audio_dir": audio_dir.as_posix(),
+        "exported": exported,
+    }
+
+
+def main() -> int:
+    args = parse_args()
+    result = export(args)
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

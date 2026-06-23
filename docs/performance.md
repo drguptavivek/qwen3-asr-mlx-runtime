@@ -163,6 +163,18 @@ Candidate future work:
   becomes material for very small utterances
 - labeled WER/CER test harness to ensure speed changes do not change quality
 
+## Optimization Attempts That Did Not Help
+
+These were tested and reverted. Do not repeat them unless MLX, MLX-LM, or the
+decoder implementation changes enough to invalidate the measurements.
+
+| Attempt | Hypothesis | Result | Decision |
+| --- | --- | --- | --- |
+| Vectorized MRoPE source selection with `mx.take_along_axis` | Avoid Python slice/concat work across RoPE dimensions. | Tiny tensor parity passed, but real three-file timing regressed: sequential `3.5043s` vs `3.3762s`; batched `2.5942s` vs `2.5568s`. | Reverted. The indexing path cost more than it saved. |
+| Removing forced `mx.eval(cos, sin)` in MRoPE generation | Reduce explicit synchronization and allow more lazy fusion. | Sequential timing regressed to `4.0574s` from `3.3762s`. | Reverted. Explicit eval is beneficial in this decode loop. |
+| Prefill `lm_head` bypass | During prefill, avoid projecting every prefill token to logits. | Output matched, but sequential regressed to `3.6279s`; batched regressed to `3.1264s`. MLX peak memory fell from `3650.41 MB` to `3553.11 MB`, but speed got worse. | Reverted as a speed optimization. Could be revisited only as an explicit memory-saving mode. |
+| Audio pad span caching | Avoid scanning `input_ids` for the contiguous audio pad span. | Output matched, but sequential regressed to `3.4232s`; batched regressed to `2.6475s`. | Reverted. The CPU span scan is not material for this workload. |
+
 Measured launcher effect on the same managed venv:
 
 | Command | Startup behavior | Wall time |

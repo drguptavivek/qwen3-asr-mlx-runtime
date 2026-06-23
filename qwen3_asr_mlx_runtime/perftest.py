@@ -25,7 +25,8 @@ from .runtime import (
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run a Qwen3-ASR MLX performance test on one or more audio files")
-    parser.add_argument("audio", nargs="+", help="WAV/audio file path. Pass multiple paths for VAD-style batch testing.")
+    parser.add_argument("audio", nargs="*", help="WAV/audio file path. Pass multiple paths for VAD-style batch testing.")
+    parser.add_argument("--manifest", help="Optional JSONL manifest with an audio field, such as eval/.../expected.jsonl")
     parser.add_argument("--model", default=DEFAULT_MODEL, help="HF repo id or local model path")
     parser.add_argument("--cache-dir", default=str(DEFAULT_CACHE), help="Model cache directory")
     parser.add_argument("--language", default=None, help="Optional forced Qwen language name, e.g. English")
@@ -46,6 +47,24 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--json", action="store_true", help="Emit machine-readable JSON only")
     parser.add_argument("--show-text", action="store_true", help="Print decoded text in table mode")
     return parser.parse_args()
+
+
+def read_manifest_audio(manifest_path: str) -> list[str]:
+    paths: list[str] = []
+    with Path(manifest_path).expanduser().open("r", encoding="utf-8") as handle:
+        for line_number, raw_line in enumerate(handle, start=1):
+            line = raw_line.strip()
+            if not line:
+                continue
+            try:
+                record = json.loads(line)
+            except json.JSONDecodeError as exc:
+                raise ValueError(f"{manifest_path}:{line_number}: invalid JSON") from exc
+            audio = record.get("audio")
+            if not isinstance(audio, str) or not audio:
+                raise ValueError(f"{manifest_path}:{line_number}: missing string audio field")
+            paths.append(audio)
+    return paths
 
 
 def text_after_asr_tag(text: str) -> str:
@@ -91,7 +110,14 @@ def run_perftest(args: argparse.Namespace) -> dict[str, Any]:
         runtime = Qwen3ASRMLXRuntime(ctx)
     load_seconds = time.perf_counter() - started
 
-    audio_paths = [str(Path(path).expanduser()) for path in args.audio]
+    audio_inputs = []
+    if args.manifest:
+        audio_inputs.extend(read_manifest_audio(args.manifest))
+    audio_inputs.extend(args.audio)
+    if not audio_inputs:
+        raise ValueError("pass at least one audio path or --manifest")
+
+    audio_paths = [str(Path(path).expanduser()) for path in audio_inputs]
     with contextlib.redirect_stdout(sys.stderr):
         wavs = [load_audio(dataclasses.replace(ctx, audio_path=path)) for path in audio_paths]
 
