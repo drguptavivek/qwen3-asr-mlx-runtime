@@ -130,6 +130,7 @@ def run_perftest(args: argparse.Namespace) -> dict[str, Any]:
         "audio_count": len(audio_paths),
         "audio_seconds": total_audio_seconds,
         "load_seconds": round(load_seconds, 4),
+        "load_profile": runtime.load_profile,
         "run_seconds": round(run_seconds, 4),
         "total_seconds_with_load": round(total_seconds, 4),
         "realtime_factor": round(total_audio_seconds / run_seconds, 2) if run_seconds > 0 else None,

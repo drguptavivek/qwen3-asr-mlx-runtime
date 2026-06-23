@@ -14,12 +14,31 @@ Three VAD-sized WAVs totaling `10.1001s` of audio.
 | `Qwen/Qwen3-ASR-1.7B` | accuracy candidate | `sequential` | `2.1896s` | `4.61x` | `4914.04 MB` | `6609.91 MB` |
 | `Qwen/Qwen3-ASR-1.7B` | heavier batched candidate | `batched` | `1.4309s` | `7.06x` | `4927.28 MB` | `6663.12 MB` |
 
+## Multi-file Sample Smoke Set
+
+Three longer WAV files totaling `39.2685s` of audio, using the optimized
+combined checkpoint loader and `Qwen/Qwen3-ASR-0.6B`.
+
+| Decoder mode | Audio files | Load time | Run time | Realtime factor | Realtime factor with load | Peak RSS | MLX peak |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `sequential` | 3 | `2.9045s` | `3.3762s` | `11.63x` | `5.96x` | `2569.18 MB` | `3650.41 MB` |
+| `batched` | 3 | `2.7501s` | `2.5568s` | `15.36x` | `6.99x` | `2560.80 MB` | `3435.69 MB` |
+
+Sequential and batched decode produced matching text on this three-file smoke
+set. Treat this as runtime evidence, not a quality guarantee; batched decode can
+still drift when next-token logits are nearly tied.
+
 ## Run Your Own Perftest
 
 Use `scripts/qwen3-asr-mlx-perftest` for local timing on one or more WAV/audio
 files. The command loads the model once, transcribes the supplied files, and
 reports load time, run time, realtime factor, token counts, audio embedding
 shape, and memory telemetry.
+
+The current runtime loads the Qwen3-ASR audio tower and MRoPE decoder through a
+combined checkpoint loader. Safetensor shards are read once and partitioned into
+audio and text weights in memory. The perftest JSON includes `load_profile` with
+shard read time, weight load time, weight counts, and memory telemetry.
 
 One file:
 
@@ -120,3 +139,24 @@ Then report:
 - peak RSS
 - MLX peak memory
 - per-stage timings
+
+## Core MLX Runtime Optimizations
+
+Implemented:
+
+- combined checkpoint loader for audio tower and decoder, so safetensor shards
+  are read once instead of once per component
+- cached prompt token template
+- fast contiguous audio embedding splice
+- cached MRoPE one-step cos/sin tensors during generation
+- cached decoder generation
+- batched feature extraction and audio tower for multiple finalized utterances
+- optional batched multimodal prefill and `BatchKVCache` continuation
+
+Candidate future work:
+
+- optional model quantization as a separate accuracy/latency mode
+- MLX compilation experiments for stable-shape audio tower or decode kernels
+- lower-level audio feature extraction replacement if CPU feature extraction
+  becomes material for very small utterances
+- labeled WER/CER test harness to ensure speed changes do not change quality

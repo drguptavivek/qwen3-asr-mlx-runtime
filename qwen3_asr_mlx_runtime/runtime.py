@@ -763,6 +763,69 @@ def load_mapped_audio_tower(model_dir: str, audio_config: dict[str, Any]):
     return model
 
 
+def load_mapped_qwen3_asr_components(
+    model_dir: str,
+    audio_config: dict[str, Any],
+    text_config: dict[str, Any],
+) -> tuple[Any, Any, dict[str, Any]]:
+    """Load audio tower and MRoPE decoder while reading checkpoint shards once."""
+    import mlx.core as mx
+    from mlx_lm.models import qwen3
+
+    load_started = time.perf_counter()
+    files = sorted(glob.glob(str(Path(model_dir) / "*.safetensors")))
+    if not files:
+        files = sorted(glob.glob(str(Path(model_dir) / "**" / "*.safetensors"), recursive=True))
+    if not files:
+        raise ProbeError(f"No safetensors found in {model_dir}")
+
+    audio_model_class = make_qwen3_asr_audio_tower_class()
+    audio_model = audio_model_class(audio_config)
+
+    text_config = dict(text_config)
+    text_config["model_type"] = "qwen3"
+    text_args = qwen3.ModelArgs.from_dict(text_config)
+    text_model_class = make_qwen3_asr_mrope_model_class()
+    text_model = text_model_class(text_args)
+
+    audio_weights: dict[str, Any] = {}
+    text_weights: dict[str, Any] = {}
+    shard_read_started = time.perf_counter()
+    for file in files:
+        for key, value in mx.load(file).items():
+            if key.startswith("thinker.audio_tower."):
+                mapped = key[len("thinker.audio_tower.") :]
+                if mapped.startswith("conv2d") and mapped.endswith(".weight"):
+                    value = value.transpose(0, 2, 3, 1)
+                audio_weights[mapped] = value
+                continue
+            mapped = mapped_text_weight_name(key)
+            if mapped is not None:
+                text_weights[mapped] = value
+    shard_read_seconds = time.perf_counter() - shard_read_started
+
+    weight_load_started = time.perf_counter()
+    text_weights = text_model.sanitize(text_weights)
+    audio_model.load_weights(list(audio_weights.items()), strict=True)
+    text_model.load_weights(list(text_weights.items()), strict=True)
+    mx.eval(audio_model.parameters(), text_model.parameters())
+    audio_model.eval()
+    text_model.eval()
+    weight_load_seconds = time.perf_counter() - weight_load_started
+
+    profile = {
+        "stage": "combined_component_load",
+        "files": [Path(file).name for file in files],
+        "audio_weight_count": len(audio_weights),
+        "text_weight_count": len(text_weights),
+        "shard_read_seconds": round(shard_read_seconds, 4),
+        "weight_load_seconds": round(weight_load_seconds, 4),
+        "total_seconds": round(time.perf_counter() - load_started, 4),
+        "memory": memory_telemetry(),
+    }
+    return audio_model, text_model, profile
+
+
 def audio_pad_token_span(input_ids: Any, audio_pad_id: int, audio_embeddings_len: int) -> tuple[int, int]:
     ids = np.asarray(input_ids).reshape(-1)
     pad_positions = np.flatnonzero(ids == int(audio_pad_id))
@@ -825,8 +888,11 @@ class Qwen3ASRMLXRuntime:
             self.prompt,
             int(self.audio_pad_id),
         )
-        self.audio_tower = load_mapped_audio_tower(self.model_dir, self.audio_config)
-        self.decoder = load_mapped_qwen3_asr_mrope_model(self.model_dir, self.text_config)
+        self.audio_tower, self.decoder, self.load_profile = load_mapped_qwen3_asr_components(
+            self.model_dir,
+            self.audio_config,
+            self.text_config,
+        )
         self._mrope_step_cache: dict[tuple[int, int, int], tuple[Any, Any]] = {}
         self.last_profile: dict[str, Any] = {}
         self._init_mrope_cache()
@@ -1519,6 +1585,7 @@ class RuntimeJSONBridge:
                 "model_dir": runtime.model_dir,
                 "use_cache": self.use_cache,
                 "load_seconds": round(load_seconds, 4) if load_seconds is not None else 0.0,
+                "load_profile": runtime.load_profile,
             }
         if msg_type == "start_stream":
             self.ensure_runtime()
