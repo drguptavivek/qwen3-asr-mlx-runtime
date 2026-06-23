@@ -53,7 +53,7 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 Clone the repo:
 
 ```bash
-git clone https://github.com/YOUR_ORG/qwen3-asr-mlx-runtime.git
+git clone https://github.com/drguptavivek/qwen3-asr-mlx-runtime.git
 cd qwen3-asr-mlx-runtime
 ```
 
@@ -175,7 +175,7 @@ Observed transcript differences on the smoke set:
 In a parent app repository:
 
 ```bash
-git submodule add https://github.com/YOUR_ORG/qwen3-asr-mlx-runtime.git Vendor/qwen3-asr-mlx-runtime
+git submodule add https://github.com/drguptavivek/qwen3-asr-mlx-runtime.git Vendor/qwen3-asr-mlx-runtime
 git submodule update --init --recursive
 ```
 

@@ -6,7 +6,7 @@ version but keep the ASR runtime independently releasable.
 ## Add To A Parent Repo
 
 ```bash
-git submodule add https://github.com/YOUR_ORG/qwen3-asr-mlx-runtime.git Vendor/qwen3-asr-mlx-runtime
+git submodule add https://github.com/drguptavivek/qwen3-asr-mlx-runtime.git Vendor/qwen3-asr-mlx-runtime
 git submodule update --init --recursive
 ```
 

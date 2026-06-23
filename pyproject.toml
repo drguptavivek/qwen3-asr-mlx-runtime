@@ -34,9 +34,9 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/YOUR_ORG/qwen3-asr-mlx-runtime"
-Issues = "https://github.com/YOUR_ORG/qwen3-asr-mlx-runtime/issues"
-Source = "https://github.com/YOUR_ORG/qwen3-asr-mlx-runtime"
+Homepage = "https://github.com/drguptavivek/qwen3-asr-mlx-runtime"
+Issues = "https://github.com/drguptavivek/qwen3-asr-mlx-runtime/issues"
+Source = "https://github.com/drguptavivek/qwen3-asr-mlx-runtime"
 
 [project.scripts]
 qwen3-asr-mlx-bridge = "qwen3_asr_mlx_runtime.bridge:main"
