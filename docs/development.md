@@ -9,6 +9,15 @@ pip install -U pip
 pip install -e .
 ```
 
+The tested MLX stack is:
+
+```text
+mlx==0.31.2
+mlx-lm==0.29.1
+transformers==4.57.6
+qwen-asr==0.0.6
+```
+
 Or use the managed launcher:
 
 ```bash

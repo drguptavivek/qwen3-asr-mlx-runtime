@@ -42,6 +42,25 @@ runtime provides a separate Apple Silicon path using MLX:
 - Native arm64 Python 3.12, or `uv`
 - Xcode Command Line Tools recommended
 
+Tested runtime package versions:
+
+```text
+mlx==0.31.2
+mlx-lm==0.29.1
+transformers==4.57.6
+qwen-asr==0.0.6
+```
+
+The launcher pins these versions by default. To install the tested MLX-LM
+version manually:
+
+```bash
+python3.12 -m venv .venv
+. .venv/bin/activate
+pip install -U pip
+pip install "mlx==0.31.2" "mlx-lm==0.29.1" "transformers==4.57.6" "qwen-asr==0.0.6"
+```
+
 Install `uv` if you want the launcher to manage Python automatically:
 
 ```bash
