@@ -15,6 +15,13 @@ The tested MLX stack is:
 mlx==0.31.2
 mlx-lm==0.29.1
 transformers==4.57.6
+safetensors==0.8.0
+huggingface_hub==0.36.2
+soundfile==0.14.0
+librosa==0.11.0
+numpy==2.4.6
+numba==0.65.1
+llvmlite==0.47.0
 qwen-asr==0.0.6
 ```
 

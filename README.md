@@ -48,6 +48,13 @@ Tested runtime package versions:
 mlx==0.31.2
 mlx-lm==0.29.1
 transformers==4.57.6
+safetensors==0.8.0
+huggingface_hub==0.36.2
+soundfile==0.14.0
+librosa==0.11.0
+numpy==2.4.6
+numba==0.65.1
+llvmlite==0.47.0
 qwen-asr==0.0.6
 ```
 
@@ -58,7 +65,18 @@ version manually:
 python3.12 -m venv .venv
 . .venv/bin/activate
 pip install -U pip
-pip install "mlx==0.31.2" "mlx-lm==0.29.1" "transformers==4.57.6" "qwen-asr==0.0.6"
+pip install \
+  "mlx==0.31.2" \
+  "mlx-lm==0.29.1" \
+  "transformers==4.57.6" \
+  "safetensors==0.8.0" \
+  "huggingface_hub[cli]==0.36.2" \
+  "soundfile==0.14.0" \
+  "librosa==0.11.0" \
+  "numpy==2.4.6" \
+  "numba==0.65.1" \
+  "llvmlite==0.47.0" \
+  "qwen-asr==0.0.6"
 ```
 
 Install `uv` if you want the launcher to manage Python automatically:
@@ -98,6 +116,31 @@ Print capabilities without loading the model:
 
 ```bash
 scripts/qwen3-asr-mlx-bridge --print-capabilities
+```
+
+Run a quick performance test on one WAV/audio file:
+
+```bash
+scripts/qwen3-asr-mlx-perftest --local-files-only examples/audio/sample.wav
+```
+
+Run a performance test on multiple VAD-sized WAV files:
+
+```bash
+scripts/qwen3-asr-mlx-perftest --local-files-only \
+  examples/audio/utt-001.wav \
+  examples/audio/utt-002.wav \
+  examples/audio/utt-003.wav
+```
+
+Use the batched decoder path and emit JSON:
+
+```bash
+scripts/qwen3-asr-mlx-perftest --local-files-only \
+  --decoder-mode batched \
+  --json \
+  examples/audio/utt-001.wav \
+  examples/audio/utt-002.wav
 ```
 
 ## Basic JSONL Use

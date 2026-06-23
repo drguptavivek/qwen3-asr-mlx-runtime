@@ -14,6 +14,68 @@ Three VAD-sized WAVs totaling `10.1001s` of audio.
 | `Qwen/Qwen3-ASR-1.7B` | accuracy candidate | `sequential` | `2.1896s` | `4.61x` | `4914.04 MB` | `6609.91 MB` |
 | `Qwen/Qwen3-ASR-1.7B` | heavier batched candidate | `batched` | `1.4309s` | `7.06x` | `4927.28 MB` | `6663.12 MB` |
 
+## Run Your Own Perftest
+
+Use `scripts/qwen3-asr-mlx-perftest` for local timing on one or more WAV/audio
+files. The command loads the model once, transcribes the supplied files, and
+reports load time, run time, realtime factor, token counts, audio embedding
+shape, and memory telemetry.
+
+One file:
+
+```bash
+scripts/qwen3-asr-mlx-perftest --local-files-only path/to/audio.wav
+```
+
+Multiple VAD-sized files:
+
+```bash
+scripts/qwen3-asr-mlx-perftest --local-files-only \
+  path/to/utt-001.wav \
+  path/to/utt-002.wav \
+  path/to/utt-003.wav
+```
+
+Accuracy candidate:
+
+```bash
+scripts/qwen3-asr-mlx-perftest Qwen/Qwen3-ASR-1.7B --local-files-only \
+  path/to/utt-001.wav \
+  path/to/utt-002.wav
+```
+
+Batched decoder path:
+
+```bash
+scripts/qwen3-asr-mlx-perftest --local-files-only \
+  --decoder-mode batched \
+  path/to/utt-001.wav \
+  path/to/utt-002.wav
+```
+
+Machine-readable output:
+
+```bash
+scripts/qwen3-asr-mlx-perftest --local-files-only --json path/to/audio.wav
+```
+
+Show decoded text in the table output:
+
+```bash
+scripts/qwen3-asr-mlx-perftest --local-files-only --show-text path/to/audio.wav
+```
+
+Important options:
+
+| Option | Use |
+| --- | --- |
+| `--decoder-mode sequential` | Batches feature extraction/audio tower, then decodes each file with its own cache. This is the default for final transcripts. |
+| `--decoder-mode batched` | Uses batched multimodal prefill and `BatchKVCache` continuation. Faster, but small wording drift is possible. |
+| `--max-new-tokens 0` | Decode until EOS. This is the default. |
+| `--json` | Emit one JSON result object for scripts and dashboards. |
+| `--show-text` | Include transcript text in human-readable output. |
+| `--local-files-only` | Use only locally cached model files. Omit it for first download. |
+
 ## Interpretation
 
 - `0.6B` is the current realtime default.

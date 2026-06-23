@@ -2,7 +2,7 @@
 set -euo pipefail
 
 MODEL="${QWEN3_ASR_MLX_MODEL:-Qwen/Qwen3-ASR-0.6B}"
-if [[ $# -gt 0 && "$1" != --* ]]; then
+if [[ $# -gt 0 && "$1" != --* && "$1" == Qwen/* ]]; then
   MODEL="$1"
   shift
 fi
@@ -25,7 +25,7 @@ if [[ ! -x "$VENV/bin/python" ]]; then
   elif command -v "python$PYTHON_VERSION" >/dev/null 2>&1; then
     "python$PYTHON_VERSION" -m venv "$VENV" >&2
   else
-    echo "Python $PYTHON_VERSION or uv is required for the Qwen3-ASR MLX bridge." >&2
+    echo "Python $PYTHON_VERSION or uv is required for the Qwen3-ASR MLX perftest." >&2
     exit 2
   fi
 fi
@@ -52,7 +52,7 @@ else
   "$VENV/bin/python" -m pip install -U "${PACKAGES[@]}" >&2
 fi
 
-exec env PYTHONPATH="$REPO_ROOT${PYTHONPATH:+:$PYTHONPATH}" "$VENV/bin/python" -m qwen3_asr_mlx_runtime.bridge \
+exec env PYTHONPATH="$REPO_ROOT${PYTHONPATH:+:$PYTHONPATH}" "$VENV/bin/python" -m qwen3_asr_mlx_runtime.perftest \
   --model "$MODEL" \
   --cache-dir "$CACHE_DIR" \
   "$@"
