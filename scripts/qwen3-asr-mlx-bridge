@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+MODEL="${QWEN3_ASR_MLX_MODEL:-Qwen/Qwen3-ASR-0.6B}"
+if [[ $# -gt 0 && "$1" != --* ]]; then
+  MODEL="$1"
+  shift
+fi
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+RUNTIME_ROOT="${QWEN3_ASR_MLX_HOME:-${TRANSCRIBER_QWEN3_ASR_MLX_HOME:-$HOME/.audio-models/runtimes/qwen3-asr-mlx}}"
+CACHE_DIR="${QWEN3_ASR_MLX_CACHE_DIR:-$HOME/.audio-models}"
+VENV="$RUNTIME_ROOT/venv"
+PYTHON_VERSION="${QWEN3_ASR_MLX_PYTHON:-${TRANSCRIBER_QWEN3_ASR_MLX_PYTHON:-3.12}}"
+export UV_CACHE_DIR="${UV_CACHE_DIR:-$RUNTIME_ROOT/uv-cache}"
+export UV_PYTHON_INSTALL_DIR="${UV_PYTHON_INSTALL_DIR:-$RUNTIME_ROOT/uv-python}"
+
+mkdir -p "$RUNTIME_ROOT" "$UV_CACHE_DIR" "$UV_PYTHON_INSTALL_DIR"
+
+if [[ ! -x "$VENV/bin/python" ]]; then
+  if command -v uv >/dev/null 2>&1; then
+    uv python install "$PYTHON_VERSION" >&2
+    uv venv --python "$PYTHON_VERSION" "$VENV" >&2
+  elif command -v "python$PYTHON_VERSION" >/dev/null 2>&1; then
+    "python$PYTHON_VERSION" -m venv "$VENV" >&2
+  else
+    echo "Python $PYTHON_VERSION or uv is required for the Qwen3-ASR MLX bridge." >&2
+    exit 2
+  fi
+fi
+
+PACKAGES=(
+  "mlx"
+  "mlx-lm"
+  "transformers==4.57.6"
+  "safetensors"
+  "huggingface_hub[cli]"
+  "soundfile"
+  "librosa"
+  "qwen-asr"
+)
+
+if command -v uv >/dev/null 2>&1; then
+  uv pip install --python "$VENV/bin/python" -U "${PACKAGES[@]}" >&2
+else
+  "$VENV/bin/python" -m ensurepip --upgrade >&2
+  "$VENV/bin/python" -m pip install -U pip >&2
+  "$VENV/bin/python" -m pip install -U "${PACKAGES[@]}" >&2
+fi
+
+exec env PYTHONPATH="$REPO_ROOT${PYTHONPATH:+:$PYTHONPATH}" "$VENV/bin/python" -m qwen3_asr_mlx_runtime.bridge \
+  --model "$MODEL" \
+  --cache-dir "$CACHE_DIR" \
+  "$@"

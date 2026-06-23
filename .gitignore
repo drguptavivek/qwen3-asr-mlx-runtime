@@ -1,0 +1,27 @@
+.DS_Store
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.venv/
+venv/
+build/
+dist/
+*.log
+
+# Local runtime/model caches. Model weights should not be committed.
+.audio-models/
+models/
+models--*/
+*.safetensors
+*.gguf
+
+# Local audio/test artifacts.
+*.wav
+*.mp3
+*.m4a
+*.flac
+*.pcm

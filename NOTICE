@@ -1,0 +1,14 @@
+Qwen3-ASR MLX Runtime
+
+This project provides an independent MLX runtime and JSONL bridge for Qwen3-ASR
+checkpoints. It is not affiliated with or endorsed by Alibaba Cloud or the Qwen
+team.
+
+Qwen3-ASR model names, model cards, and upstream reference implementation are
+provided by QwenLM / Alibaba Cloud:
+
+- https://huggingface.co/Qwen/Qwen3-ASR-0.6B
+- https://huggingface.co/Qwen/Qwen3-ASR-1.7B
+- https://github.com/QwenLM/Qwen3-ASR
+
+This repository does not include model weights.
