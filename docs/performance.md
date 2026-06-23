@@ -146,6 +146,8 @@ Implemented:
 
 - combined checkpoint loader for audio tower and decoder, so safetensor shards
   are read once instead of once per component
+- launcher package stamp, so repeat bridge/perftest runs skip dependency
+  resolution when the managed venv already has the tested package set
 - cached prompt token template
 - fast contiguous audio embedding splice
 - cached MRoPE one-step cos/sin tensors during generation
@@ -160,3 +162,10 @@ Candidate future work:
 - lower-level audio feature extraction replacement if CPU feature extraction
   becomes material for very small utterances
 - labeled WER/CER test harness to ensure speed changes do not change quality
+
+Measured launcher effect on the same managed venv:
+
+| Command | Startup behavior | Wall time |
+| --- | --- | ---: |
+| first `--print-capabilities` after stamp change | validates package set and writes stamp | `0.27s` |
+| repeated `--print-capabilities` | skips dependency resolution | `0.06s` |

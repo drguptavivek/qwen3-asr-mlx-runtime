@@ -39,6 +39,10 @@ bash -n scripts/qwen3-asr-mlx-bridge
 python -m qwen3_asr_mlx_runtime.bridge --print-capabilities
 ```
 
+The launcher writes `$VENV/.qwen3-asr-mlx-packages` after installing the tested
+package set. Later runs skip dependency resolution unless the pinned package
+list changes.
+
 ## Metal Check
 
 The full ASR path requires Metal access. In headless or sandboxed macOS

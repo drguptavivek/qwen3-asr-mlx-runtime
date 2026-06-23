@@ -44,12 +44,17 @@ PACKAGES=(
   "qwen-asr==0.0.6"
 )
 
-if command -v uv >/dev/null 2>&1; then
-  uv pip install --python "$VENV/bin/python" -U "${PACKAGES[@]}" >&2
-else
-  "$VENV/bin/python" -m ensurepip --upgrade >&2
-  "$VENV/bin/python" -m pip install -U pip >&2
-  "$VENV/bin/python" -m pip install -U "${PACKAGES[@]}" >&2
+PACKAGE_STAMP="$VENV/.qwen3-asr-mlx-packages"
+PACKAGE_SPEC="$(printf '%s\n' "${PACKAGES[@]}")"
+if [[ ! -f "$PACKAGE_STAMP" ]] || [[ "$(cat "$PACKAGE_STAMP")" != "$PACKAGE_SPEC" ]]; then
+  if command -v uv >/dev/null 2>&1; then
+    uv pip install --python "$VENV/bin/python" -U "${PACKAGES[@]}" >&2
+  else
+    "$VENV/bin/python" -m ensurepip --upgrade >&2
+    "$VENV/bin/python" -m pip install -U pip >&2
+    "$VENV/bin/python" -m pip install -U "${PACKAGES[@]}" >&2
+  fi
+  printf '%s' "$PACKAGE_SPEC" > "$PACKAGE_STAMP"
 fi
 
 exec env PYTHONPATH="$REPO_ROOT${PYTHONPATH:+:$PYTHONPATH}" "$VENV/bin/python" -m qwen3_asr_mlx_runtime.perftest \
