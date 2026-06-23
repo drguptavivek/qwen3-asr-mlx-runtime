@@ -144,6 +144,7 @@ utterances to this bridge.
 
 See:
 
+- [Blog article: Qwen3-ASR MLX Runtime for Realtime Transcription on Mac](docs/blog/qwen3-asr-mlx-runtime-realtime-transcription-mac.md)
 - [Protocol](docs/protocol.md)
 - [Architecture](docs/architecture.md)
 - [Performance](docs/performance.md)
