@@ -1,0 +1,183 @@
+#!/usr/bin/env python3
+"""Export VAD-sized clips from a local CHiME-6 parquet mirror."""
+
+from __future__ import annotations
+
+import argparse
+import io
+import json
+import math
+import sys
+from pathlib import Path
+from typing import Any
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Export timestamp-bounded CHiME-6 clips")
+    parser.add_argument(
+        "--parquet",
+        default="eval/hf-datasets/argmaxinc/chime-6/data/test-00000-of-00002.parquet",
+        help="Local CHiME-6 parquet file",
+    )
+    parser.add_argument("--row", type=int, default=0, help="Row index inside the parquet file")
+    parser.add_argument("--out", default="eval/chime6-vad-clips", help="Output directory")
+    parser.add_argument("--limit", type=int, default=24, help="Maximum clips to export")
+    parser.add_argument("--offset", type=int, default=0, help="Speech windows to skip before exporting")
+    parser.add_argument("--min-duration", type=float, default=3.0, help="Minimum exported clip duration")
+    parser.add_argument("--max-duration", type=float, default=18.0, help="Maximum exported clip duration")
+    parser.add_argument("--merge-gap", type=float, default=0.35, help="Merge regions separated by at most this many seconds")
+    return parser.parse_args()
+
+
+def require_optional_deps() -> tuple[Any, Any, Any]:
+    try:
+        import numpy as np
+        import pyarrow.parquet as pq
+        import soundfile as sf
+    except ImportError as exc:
+        print(
+            "Missing optional CHiME export dependencies.\n"
+            "Run with:\n"
+            "  uv run --with pyarrow --with soundfile --with numpy "
+            "scripts/export-chime6-clips ...",
+            file=sys.stderr,
+        )
+        raise SystemExit(2) from exc
+    return np, pq, sf
+
+
+def decode_audio(audio: dict[str, Any], np: Any, sf: Any) -> tuple[Any, int]:
+    if audio.get("bytes") is not None:
+        values, sample_rate = sf.read(io.BytesIO(audio["bytes"]), dtype="float32", always_2d=False)
+    elif audio.get("path"):
+        values, sample_rate = sf.read(audio["path"], dtype="float32", always_2d=False)
+    else:
+        raise ValueError("CHiME audio row does not contain bytes or path")
+    values = np.asarray(values, dtype=np.float32)
+    if values.ndim == 2:
+        values = values.mean(axis=1)
+    if values.ndim != 1:
+        raise ValueError(f"unsupported audio shape {values.shape}")
+    return values, int(sample_rate)
+
+
+def build_windows(
+    starts: list[float],
+    ends: list[float],
+    *,
+    min_duration: float,
+    max_duration: float,
+    merge_gap: float,
+) -> list[tuple[float, float]]:
+    intervals = sorted((float(start), float(end)) for start, end in zip(starts, ends) if float(end) > float(start))
+    windows: list[tuple[float, float]] = []
+    current_start: float | None = None
+    current_end: float | None = None
+
+    def flush() -> None:
+        nonlocal current_start, current_end
+        if current_start is None or current_end is None:
+            return
+        if current_end - current_start >= min_duration:
+            windows.append((current_start, current_end))
+        current_start = None
+        current_end = None
+
+    for start, end in intervals:
+        if current_start is None or current_end is None:
+            current_start, current_end = start, end
+            continue
+
+        would_end = max(current_end, end)
+        close_enough = start <= current_end + merge_gap
+        within_max = would_end - current_start <= max_duration
+        if close_enough and within_max:
+            current_end = would_end
+            continue
+
+        flush()
+        current_start, current_end = start, end
+
+    flush()
+    return windows
+
+
+def approximate_text(tokens: list[str], start: float, end: float, duration: float) -> str:
+    if not tokens or duration <= 0:
+        return ""
+    first = max(0, min(len(tokens), math.floor(len(tokens) * start / duration)))
+    last = max(first, min(len(tokens), math.ceil(len(tokens) * end / duration)))
+    return " ".join(str(token) for token in tokens[first:last])
+
+
+def export(args: argparse.Namespace) -> dict[str, Any]:
+    np, pq, sf = require_optional_deps()
+    table = pq.read_table(args.parquet)
+    if args.row < 0 or args.row >= table.num_rows:
+        raise ValueError(f"row {args.row} out of range for {table.num_rows} rows")
+    row = table.slice(args.row, 1).to_pylist()[0]
+
+    audio, sample_rate = decode_audio(row["audio"], np, sf)
+    duration = float(audio.shape[0]) / sample_rate
+    windows = build_windows(
+        row["timestamps_start"],
+        row["timestamps_end"],
+        min_duration=args.min_duration,
+        max_duration=args.max_duration,
+        merge_gap=args.merge_gap,
+    )
+    selected = windows[args.offset : args.offset + args.limit]
+
+    out_dir = Path(args.out).expanduser()
+    audio_dir = out_dir / "audio"
+    audio_dir.mkdir(parents=True, exist_ok=True)
+    expected_path = out_dir / "expected.jsonl"
+    tokens = row.get("transcript") or []
+
+    with expected_path.open("w", encoding="utf-8") as expected:
+        for index, (start, end) in enumerate(selected):
+            start_sample = max(0, min(audio.shape[0], int(round(start * sample_rate))))
+            end_sample = max(start_sample, min(audio.shape[0], int(round(end * sample_rate))))
+            clip = audio[start_sample:end_sample]
+            if clip.size == 0:
+                continue
+            path = audio_dir / f"chime6-row{args.row:02d}-{index:03d}-{start:07.2f}-{end:07.2f}.wav"
+            sf.write(str(path), clip, sample_rate)
+            record = {
+                "audio": path.as_posix(),
+                "text": approximate_text(tokens, start, end, duration),
+                "dataset": "argmaxinc/chime-6",
+                "split": "test",
+                "row": args.row,
+                "clip_start": round(start, 4),
+                "clip_end": round(end, 4),
+                "duration": round(end - start, 4),
+                "text_scope": "duration_proportional_approximation",
+                "boundary_source": "chime6_timestamps_merged",
+                "merge_gap": args.merge_gap,
+                "min_duration": args.min_duration,
+                "max_duration": args.max_duration,
+            }
+            expected.write(json.dumps(record, ensure_ascii=False) + "\n")
+
+    return {
+        "type": "chime6_clip_export",
+        "parquet": args.parquet,
+        "row": args.row,
+        "out": out_dir.as_posix(),
+        "expected": expected_path.as_posix(),
+        "audio_dir": audio_dir.as_posix(),
+        "available_windows": len(windows),
+        "exported": len(selected),
+        "audio_duration": round(duration, 4),
+    }
+
+
+def main() -> int:
+    args = parse_args()
+    print(json.dumps(export(args), ensure_ascii=False, indent=2))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

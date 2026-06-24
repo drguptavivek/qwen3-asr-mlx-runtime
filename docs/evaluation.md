@@ -136,6 +136,25 @@ uv run --with datasets --with soundfile --with numpy \
   --out eval/chime6-smoke
 ```
 
+Export multiple VAD-sized CHiME clips from the local parquet mirror:
+
+```bash
+uv run --with pyarrow --with soundfile --with numpy \
+  scripts/export-chime6-clips \
+  --parquet eval/hf-datasets/argmaxinc/chime-6/data/test-00000-of-00002.parquet \
+  --row 0 \
+  --limit 24 \
+  --min-duration 3 \
+  --max-duration 18 \
+  --merge-gap 0.35 \
+  --out eval/chime6-vad-row0-24
+```
+
+This exporter uses CHiME-6 timestamp boundaries as speech-region boundaries. It
+is VAD-like for batching/runtime stress, but it is not a pure acoustic VAD
+algorithm. The generated text remains approximate because CHiME-6 exposes
+row-level word text separately from segment timestamp arrays in this mirror.
+
 For CHiME-6, the exported `text` field may be empty for clipped examples when
 word timestamps are not available. When the exporter can infer only a rough text
 slice, it writes `text_scope: "duration_proportional_approximation"`. Treat that
