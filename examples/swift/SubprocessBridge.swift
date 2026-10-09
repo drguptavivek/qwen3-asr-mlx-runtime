@@ -2,13 +2,16 @@ import Foundation
 
 let repoRoot = ProcessInfo.processInfo.environment["QWEN3_ASR_MLX_RUNTIME_ROOT"]
     ?? FileManager.default.currentDirectoryPath
+guard let model = ProcessInfo.processInfo.environment["QWEN3_ASR_MLX_MODEL"], !model.isEmpty else {
+    fatalError("Set QWEN3_ASR_MLX_MODEL from adapter metadata before launching the bridge.")
+}
 let audioPath = CommandLine.arguments.dropFirst().first ?? "examples/audio/sample.wav"
 
 let process = Process()
 process.executableURL = URL(fileURLWithPath: "/bin/bash")
 process.arguments = [
     "\(repoRoot)/scripts/qwen3-asr-mlx-bridge",
-    "Qwen/Qwen3-ASR-0.6B",
+    model,
     "--local-files-only"
 ]
 

@@ -7,17 +7,17 @@ runtime planning but are not a formal benchmark.
 
 Three VAD-sized WAVs totaling `10.1001s` of audio.
 
-| Model | Intended role | Decoder mode | Total time | Realtime factor | Peak RSS | MLX peak |
+| Adapter class | Intended role | Decoder mode | Total time | Realtime factor | Peak RSS | MLX peak |
 | --- | --- | --- | ---: | ---: | ---: | ---: |
-| `Qwen/Qwen3-ASR-0.6B` | realtime efficiency default | `sequential` | `1.1157s` | `9.06x` | `2418.84 MB` | `3093.95 MB` |
-| `Qwen/Qwen3-ASR-0.6B` | lowest-latency draft/speed mode | `batched` | `0.6936s` | `14.59x` | `2409.76 MB` | `3179.04 MB` |
-| `Qwen/Qwen3-ASR-1.7B` | accuracy candidate | `sequential` | `2.1896s` | `4.61x` | `4914.04 MB` | `6609.91 MB` |
-| `Qwen/Qwen3-ASR-1.7B` | heavier batched candidate | `batched` | `1.4309s` | `7.06x` | `4927.28 MB` | `6663.12 MB` |
+| Small Qwen3-ASR adapter | realtime efficiency candidate | `sequential` | `1.1157s` | `9.06x` | `2418.84 MB` | `3093.95 MB` |
+| Small Qwen3-ASR adapter | lowest-latency draft/speed mode | `batched` | `0.6936s` | `14.59x` | `2409.76 MB` | `3179.04 MB` |
+| Larger Qwen3-ASR adapter | accuracy candidate | `sequential` | `2.1896s` | `4.61x` | `4914.04 MB` | `6609.91 MB` |
+| Larger Qwen3-ASR adapter | heavier batched candidate | `batched` | `1.4309s` | `7.06x` | `4927.28 MB` | `6663.12 MB` |
 
 ## Multi-file Sample Smoke Set
 
 Three longer WAV files totaling `39.2685s` of audio, using the optimized
-combined checkpoint loader and `Qwen/Qwen3-ASR-0.6B`.
+combined checkpoint loader and the small Qwen3-ASR adapter.
 
 | Decoder mode | Audio files | Load time | Run time | Realtime factor | Realtime factor with load | Peak RSS | MLX peak |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -55,10 +55,10 @@ scripts/qwen3-asr-mlx-perftest --local-files-only \
   path/to/utt-003.wav
 ```
 
-Accuracy candidate:
+Alternate adapter-selected checkpoint:
 
 ```bash
-scripts/qwen3-asr-mlx-perftest Qwen/Qwen3-ASR-1.7B --local-files-only \
+scripts/qwen3-asr-mlx-perftest "$QWEN3_ASR_MLX_MODEL" --local-files-only \
   path/to/utt-001.wav \
   path/to/utt-002.wav
 ```

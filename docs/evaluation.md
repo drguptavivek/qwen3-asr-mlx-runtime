@@ -92,11 +92,11 @@ scripts/qwen3-asr-mlx-score \
   --predictions eval/eka-medical-en/qwen3-asr-0.6b.json
 ```
 
-Run the 1.7B accuracy candidate on the same slice:
+Run another adapter-selected checkpoint on the same slice:
 
 ```bash
 scripts/qwen3-asr-mlx-perftest \
-  --model Qwen/Qwen3-ASR-1.7B \
+  --model "$QWEN3_ASR_MLX_MODEL" \
   --local-files-only \
   --manifest eval/eka-medical-en/expected.jsonl \
   --json > eval/eka-medical-en/qwen3-asr-1.7b.json

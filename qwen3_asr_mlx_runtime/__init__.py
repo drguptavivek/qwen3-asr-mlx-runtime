@@ -3,7 +3,6 @@
 __all__ = [
     "BRIDGE_PROTOCOL_VERSION",
     "DEFAULT_CACHE",
-    "DEFAULT_MODEL",
     "SAMPLE_RATE",
     "ProbeContext",
     "Qwen3ASRMLXRuntime",

@@ -2,8 +2,12 @@ import { spawn } from "node:child_process";
 import { createInterface } from "node:readline";
 
 const repoRoot = process.env.QWEN3_ASR_MLX_RUNTIME_ROOT ?? process.cwd();
+const model = process.env.QWEN3_ASR_MLX_MODEL;
+if (!model) {
+  throw new Error("Set QWEN3_ASR_MLX_MODEL from adapter metadata before launching the bridge.");
+}
 const bridge = spawn("scripts/qwen3-asr-mlx-bridge", [
-  "Qwen/Qwen3-ASR-0.6B",
+  model,
   "--local-files-only",
 ], { cwd: repoRoot });
 

@@ -14,7 +14,6 @@ from typing import Any
 
 from .runtime import (
     DEFAULT_CACHE,
-    DEFAULT_MODEL,
     SAMPLE_RATE,
     ProbeContext,
     Qwen3ASRMLXRuntime,
@@ -27,7 +26,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run a Qwen3-ASR MLX performance test on one or more audio files")
     parser.add_argument("audio", nargs="*", help="WAV/audio file path. Pass multiple paths for VAD-style batch testing.")
     parser.add_argument("--manifest", help="Optional JSONL manifest with an audio field, such as eval/.../expected.jsonl")
-    parser.add_argument("--model", default=DEFAULT_MODEL, help="HF repo id or local model path")
+    parser.add_argument("--model", required=True, help="HF repo id or local model path supplied by the adapter layer")
     parser.add_argument("--cache-dir", default=str(DEFAULT_CACHE), help="Model cache directory")
     parser.add_argument("--language", default=None, help="Optional forced Qwen language name, e.g. English")
     parser.add_argument(

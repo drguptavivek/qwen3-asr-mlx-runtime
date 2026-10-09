@@ -113,13 +113,13 @@ Stops the bridge.
 ### `capabilities`
 
 ```json
-{"type":"capabilities","runtime":"qwen3-asr-mlx","protocol":"qwen3-asr-mlx-jsonl-v1","model":"Qwen/Qwen3-ASR-0.6B","sample_rate":16000,"decoder_modes":["sequential","batched"]}
+{"type":"capabilities","runtime":"qwen3-asr-mlx","protocol":"qwen3-asr-mlx-jsonl-v1","model":"adapter-selected-model","sample_rate":16000,"decoder_modes":["sequential","batched"]}
 ```
 
 ### `ready`
 
 ```json
-{"type":"ready","runtime":"qwen3-asr-mlx","protocol":"qwen3-asr-mlx-jsonl-v1","model":"Qwen/Qwen3-ASR-0.6B","model_dir":"...","use_cache":true,"load_seconds":2.8}
+{"type":"ready","runtime":"qwen3-asr-mlx","protocol":"qwen3-asr-mlx-jsonl-v1","model":"adapter-selected-model","model_dir":"...","use_cache":true,"load_seconds":2.8}
 ```
 
 ### `transcript`

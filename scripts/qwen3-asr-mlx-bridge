@@ -1,15 +1,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-MODEL="${QWEN3_ASR_MLX_MODEL:-Qwen/Qwen3-ASR-0.6B}"
+MODEL="${QWEN3_ASR_MLX_MODEL:-}"
 if [[ $# -gt 0 && "$1" != --* ]]; then
   MODEL="$1"
   shift
 fi
+if [[ -z "$MODEL" ]]; then
+  echo "Pass a model as the first argument or set QWEN3_ASR_MLX_MODEL. Model selection belongs to the adapter layer." >&2
+  exit 2
+fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-RUNTIME_ROOT="${QWEN3_ASR_MLX_HOME:-${TRANSCRIBER_QWEN3_ASR_MLX_HOME:-$HOME/.audio-models/runtimes/qwen3-asr-mlx}}"
+RUNTIME_ROOT="${QWEN3_ASR_MLX_HOME:-${TRANSCRIBER_QWEN3_ASR_MLX_HOME:-$HOME/.audio-models/runtimes/qwen3-asr-mlx-runtime}}"
 CACHE_DIR="${QWEN3_ASR_MLX_CACHE_DIR:-$HOME/.audio-models}"
 VENV="$RUNTIME_ROOT/venv"
 PYTHON_VERSION="${QWEN3_ASR_MLX_PYTHON:-${TRANSCRIBER_QWEN3_ASR_MLX_PYTHON:-3.12}}"

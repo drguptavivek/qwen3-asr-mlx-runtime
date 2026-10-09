@@ -59,12 +59,12 @@ The bridge accepts finalized utterances via `end_utterance`, `vad_boundary`, or
 
 ## Model Sizes
 
-`Qwen/Qwen3-ASR-0.6B`:
+Small Qwen3-ASR adapter:
 
 - audio embedding width observed: `1024`
-- best current default for realtime transcription
+- current efficiency candidate for realtime transcription
 
-`Qwen/Qwen3-ASR-1.7B`:
+Larger Qwen3-ASR adapter:
 
 - audio embedding width observed: `2048`
 - heavier accuracy candidate

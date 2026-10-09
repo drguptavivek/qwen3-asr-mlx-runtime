@@ -28,7 +28,6 @@ from typing import Any
 import numpy as np
 
 
-DEFAULT_MODEL = "Qwen/Qwen3-ASR-0.6B"
 DEFAULT_CACHE = Path.home() / ".audio-models"
 SAMPLE_RATE = 16_000
 AUDIO_PLACEHOLDER = "<|audio_start|><|audio_pad|><|audio_end|>"
@@ -92,10 +91,6 @@ def bridge_capabilities(ctx: ProbeContext, use_cache: bool) -> dict[str, Any]:
             "stop_stream",
             "stop",
         ],
-        "models": {
-            "efficiency": "Qwen/Qwen3-ASR-0.6B",
-            "accuracy_candidate": "Qwen/Qwen3-ASR-1.7B",
-        },
     }
 
 

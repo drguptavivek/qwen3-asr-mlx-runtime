@@ -12,11 +12,14 @@ from pathlib import Path
 
 def main() -> int:
     repo_root = Path(os.environ.get("QWEN3_ASR_MLX_RUNTIME_ROOT", Path.cwd()))
+    model = os.environ.get("QWEN3_ASR_MLX_MODEL")
+    if not model:
+        raise SystemExit("Set QWEN3_ASR_MLX_MODEL from adapter metadata before launching the bridge.")
     audio = sys.argv[1] if len(sys.argv) > 1 else "examples/audio/sample.wav"
     proc = subprocess.Popen(
         [
             str(repo_root / "scripts" / "qwen3-asr-mlx-bridge"),
-            "Qwen/Qwen3-ASR-0.6B",
+            model,
             "--local-files-only",
         ],
         cwd=repo_root,

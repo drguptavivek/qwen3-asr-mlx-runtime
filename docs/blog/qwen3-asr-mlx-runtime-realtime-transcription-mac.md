@@ -17,8 +17,8 @@ we built in `qwen3-asr-mlx-runtime`.
 
 ## What Qwen Provided
 
-Qwen released `Qwen/Qwen3-ASR-0.6B` and `Qwen/Qwen3-ASR-1.7B` as ASR models
-for language identification and speech recognition. The model card describes
+Qwen released small and larger Qwen3-ASR checkpoints for language identification
+and speech recognition. The model card describes
 support for 52 languages and dialects, and lists both offline and streaming
 inference as intended modes. It also describes the 1.7B model as the stronger
 accuracy model and the 0.6B model as the better accuracy-efficiency trade-off.
@@ -271,29 +271,29 @@ For a local transcription app, these are monitoring indicators. They help decide
 which model should be the default, when batching is useful, and when the system
 is too heavy for a particular Mac.
 
-## Model Choice: 0.6B and 1.7B
+## Model Choice Belongs To Adapters
 
-We tested both released ASR models.
+We tested both small and larger Qwen3-ASR adapters.
 
-The 0.6B model is the realtime efficiency default. It is faster and uses much
-less memory. It is the better starting point for live transcription on Mac.
+The smaller adapter is the realtime efficiency candidate. It is faster and uses
+much less memory. It is the better starting point for live transcription on Mac.
 
-The 1.7B model is the accuracy candidate. It produced cleaner wording on our
-small smoke set, but it also used substantially more memory and took longer.
-It should be offered as an opt-in mode until there is a labeled evaluation set.
+The larger adapter is the accuracy candidate. It produced cleaner wording on our
+small smoke set, but it also used substantially more memory and took longer. It
+should be offered as an opt-in mode until there is a labeled evaluation set.
 
 Our measured runtime smoke numbers on three VAD-sized WAVs totaling `10.1001s`
 of audio were:
 
-| Model | Decoder mode | Total time | Realtime factor | Peak RSS | MLX peak |
+| Adapter class | Decoder mode | Total time | Realtime factor | Peak RSS | MLX peak |
 | --- | --- | ---: | ---: | ---: | ---: |
-| `Qwen/Qwen3-ASR-0.6B` | `sequential` | `1.1157s` | `9.06x` | `2418.84 MB` | `3093.95 MB` |
-| `Qwen/Qwen3-ASR-0.6B` | `batched` | `0.6936s` | `14.59x` | `2409.76 MB` | `3179.04 MB` |
-| `Qwen/Qwen3-ASR-1.7B` | `sequential` | `2.1896s` | `4.61x` | `4914.04 MB` | `6609.91 MB` |
-| `Qwen/Qwen3-ASR-1.7B` | `batched` | `1.4309s` | `7.06x` | `4927.28 MB` | `6663.12 MB` |
+| Small Qwen3-ASR adapter | `sequential` | `1.1157s` | `9.06x` | `2418.84 MB` | `3093.95 MB` |
+| Small Qwen3-ASR adapter | `batched` | `0.6936s` | `14.59x` | `2409.76 MB` | `3179.04 MB` |
+| Larger Qwen3-ASR adapter | `sequential` | `2.1896s` | `4.61x` | `4914.04 MB` | `6609.91 MB` |
+| Larger Qwen3-ASR adapter | `batched` | `1.4309s` | `7.06x` | `4927.28 MB` | `6663.12 MB` |
 
 These are smoke-test numbers, not a formal benchmark. They are still useful for
-planning. They show that 1.7B is functional on the same runtime path, but about
+planning. They show that the larger adapter is functional on the same runtime path, but about
 twice as heavy in latency and memory on this test set.
 
 The observed text differences were also useful:
@@ -386,7 +386,7 @@ that pathway for Apple Silicon Macs.
 
 ## Sources
 
-- Qwen3-ASR model card: <https://huggingface.co/Qwen/Qwen3-ASR-0.6B>
+- Qwen3-ASR model cards: see adapter metadata for selected checkpoints
 - Qwen3-ASR upstream repository: <https://github.com/QwenLM/Qwen3-ASR>
 - Qwen3-ASR technical report: <https://arxiv.org/abs/2601.21337>
 - qwen3-asr-mlx-runtime: <https://github.com/drguptavivek/qwen3-asr-mlx-runtime>
